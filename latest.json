@@ -1,0 +1,20 @@
+{
+  "version": "0.2.1",
+  "notes": "Datum 0.2.1 - release notes: https://github.com/dexterity-admin/datum/releases/tag/v0.2.1",
+  "pub_date": "2026-11-14T21:32:03Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUQm85cTVobWIwL2VKZXJzUFlZQjNuandha1U0ZWpETWdralo0SnU4amcxSFJuOVNVVTBMMlZHTHJwOVRHV2hidHMyNGY2Rm0yNndlVlU5QzJvc3UxZmxIZGFxaE1XdVE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NjkxODUwCWZpbGU6RGF0dW1fMC4yLjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMi4xCnZEMGEvbzB3cEtFbkFNNC8xd0FOL3QrYnhBNGNMbHhvZDJDQUg1cVJ0dVZ0UnVQYVBGajRyRTU4Q3pUSk1wL0xlbGlseWVjZlJFYmhHeThiMG54WUF3PT0K",
+      "url": "https://raw.githubusercontent.com/dexterity-admin/datum-site/updates/Datum-0.2.1-windows-x64-setup.exe"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUQm85cTVobWIwL2VKZXJzUFlZQjNuandha1U0ZWpETWdralo0SnU4amcxSFJuOVNVVTBMMlZHTHJwOVRHV2hidHMyNGY2Rm0yNndlVlU5QzJvc3UxZmxIZGFxaE1XdVE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NjkxODUwCWZpbGU6RGF0dW1fMC4yLjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMi4xCnZEMGEvbzB3cEtFbkFNNC8xd0FOL3QrYnhBNGNMbHhvZDJDQUg1cVJ0dVZ0UnVQYVBGajRyRTU4Q3pUSk1wL0xlbGlseWVjZlJFYmhHeThiMG54WUF3PT0K",
+      "url": "https://raw.githubusercontent.com/dexterity-admin/datum-site/updates/Datum-0.2.1-windows-x64-setup.exe"
+    }
+  },
+  "android": {
+    "version": "0.2.1",
+    "url": "https://raw.githubusercontent.com/dexterity-admin/datum-site/updates/Datum-0.2.1-android.apk",
+    "signed": false
+  }
+}
