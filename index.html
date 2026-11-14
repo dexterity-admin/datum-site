@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Datum — piping data, drawn to scale</title>
+<meta name="description" content="Datum is Dexterity Design Services' piping data book: flanges, fittings, valves, gaskets and bolting drawn to true scale, animated explainers, piping calculators and the office workbooks. Windows and Android, fully offline.">
+<meta property="og:title" content="Datum — piping data, drawn to scale">
+<meta property="og:description" content="Every flange, fitting and valve, drawn to scale and explained in motion. Windows and Android, fully offline.">
+<meta property="og:image" content="assets/icon-512.png">
+<meta name="theme-color" content="#060d1c">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<script>document.documentElement.className = new URLSearchParams(location.search).has("still") ? "js still" : "js";</script>
+<style>
+/* Art direction: engineering at night. One steel joint under studio light;
+   blueprint cyan for anything measured, datum amber for the reference that
+   everything is measured from (the app icon's triangle). */
+:root {
+  --night: #050b18; --night-2: #08142a; --deep: #0b1d3a; --panel: rgba(14, 30, 58, .62); --line: rgba(127, 208, 255, .16);
+  --ink: #eaf2fb; --ink-2: #a9bdd4; --ink-3: #7088a6;
+  --cyan: #3fb6e8; --cyan-2: #7fd0ff; --amber: #ffb02e; --amber-2: #ff8a1f; --steel: #d9e6f3;
+  --display: "Syne", "Segoe UI", sans-serif; --sans: "Manrope", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", Consolas, monospace;
+  --pad: clamp(18px, 4vw, 56px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--night); scroll-behavior: smooth; }
+body { margin: 0; color: var(--ink); font: 17px/1.6 var(--sans); background: var(--night); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+a { color: var(--cyan-2); }
+img { max-width: 100%; display: block; }
+.mono { font-family: var(--mono); }
+
+/* blueprint grid that drifts very slowly behind everything */
+.grid-bg { position: fixed; inset: -2px; z-index: 0; pointer-events: none; opacity: .55;
+  background:
+    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 64px 64px,
+    linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 64px 64px,
+    radial-gradient(ellipse 80% 60% at 50% 30%, rgba(63, 182, 232, .10), transparent 70%);
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 40%, transparent 95%); }
+
+/* nav */
+.nav { position: fixed; top: 0; left: 0; right: 0; z-index: 30; display: flex; align-items: center; gap: 18px;
+  padding: calc(12px + env(safe-area-inset-top)) var(--pad) 12px; transition: background .3s, backdrop-filter .3s; }
+.nav.solid { background: rgba(5, 11, 24, .72); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font: 700 20px var(--display); letter-spacing: .02em; }
+.brand img { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 6px 20px rgba(63, 182, 232, .25); }
+.nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
+.nav .links a { color: var(--ink-2); text-decoration: none; font-size: 15px; font-weight: 600; }
+.nav .links a:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; gap: 9px; padding: 12px 20px; border-radius: 12px; font: 700 15px var(--sans); text-decoration: none; border: 1px solid var(--line); color: var(--ink); background: rgba(255,255,255,.04); transition: transform .2s, box-shadow .2s, background .2s; cursor: pointer; }
+.btn:hover { transform: translateY(-2px); background: rgba(255,255,255,.08); }
+.btn.primary { background: linear-gradient(135deg, var(--amber), var(--amber-2)); color: #1a1003; border: 0; box-shadow: 0 10px 30px rgba(255, 138, 31, .28); }
+.btn.primary:hover { box-shadow: 0 14px 40px rgba(255, 138, 31, .42); }
+.btn svg { width: 18px; height: 18px; }
+.nav .btn { padding: 9px 15px; font-size: 14px; }
+@media (max-width: 760px) { .nav .links a:not(.btn) { display: none; } }
+
+/* the 3D stage: a tall scroll track with the canvas pinned */
+#stage { position: relative; height: 560vh; z-index: 1; }
+.sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.vignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 60% 50%, transparent 40%, rgba(5, 11, 24, .85) 100%); }
+#dims { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+#dims .d { stroke: var(--cyan-2); stroke-width: 1.4; fill: none; }
+#dims .ext { stroke: rgba(127, 208, 255, .45); stroke-width: 1; stroke-dasharray: 4 4; }
+#dims text { fill: var(--cyan-2); font: 600 13px var(--mono); paint-order: stroke; stroke: rgba(5,11,24,.9); stroke-width: 4px; }
+.tag { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; transform: translate(-50%, -50%);
+  font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink); white-space: nowrap;
+  padding: 6px 10px; border: 1px solid rgba(255, 176, 46, .55); background: rgba(5, 11, 24, .72); border-radius: 8px; backdrop-filter: blur(6px); }
+.tag::before { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 26px; background: linear-gradient(var(--amber), transparent); }
+
+.acts { position: absolute; inset: 0; pointer-events: none; }
+.act { position: absolute; left: var(--pad); top: 50%; transform: translateY(-50%); max-width: min(520px, 44vw); opacity: 0; }
+.act.on { pointer-events: auto; }
+.kicker { font: 600 12.5px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--amber); display: flex; align-items: center; gap: 10px; }
+.kicker::before { content: ""; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 12px solid var(--amber); }
+h1, h2 { font-family: var(--display); letter-spacing: -.01em; line-height: 1.02; margin: 14px 0 16px; }
+h1 { font-size: clamp(54px, 8.6vw, 128px); font-weight: 800; }
+h1 .shine { background: linear-gradient(100deg, var(--steel) 20%, #fff 40%, var(--cyan-2) 55%, var(--steel) 75%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 7s linear infinite; }
+@keyframes shine { to { background-position: -220% 0; } }
+h2 { font-size: clamp(34px, 4.6vw, 62px); font-weight: 800; }
+.lede { font-size: clamp(17px, 1.5vw, 21px); color: var(--ink-2); max-width: 34ch; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+.meta { margin-top: 18px; color: var(--ink-3); font-size: 13.5px; }
+.scrollhint { position: absolute; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%); color: var(--ink-3); font: 600 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; display: grid; justify-items: center; gap: 8px; }
+.scrollhint i { width: 1px; height: 38px; background: linear-gradient(var(--cyan-2), transparent); animation: drip 1.8s ease-in-out infinite; transform-origin: top; }
+@keyframes drip { 0% { transform: scaleY(0); } 60% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+.progress { position: absolute; right: var(--pad); top: 50%; transform: translateY(-50%); display: grid; gap: 14px; }
+.progress b { width: 8px; height: 8px; border-radius: 50%; background: rgba(127, 208, 255, .25); transition: background .3s, transform .3s; }
+.progress b.on { background: var(--amber); transform: scale(1.5); }
+
+/* content sections */
+section.block { position: relative; z-index: 2; padding: clamp(80px, 12vh, 150px) var(--pad); max-width: 1240px; margin: 0 auto; }
+.split { display: grid; grid-template-columns: 1fr 1.15fr; gap: clamp(28px, 5vw, 80px); align-items: center; }
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; } h1 { font-size: 58px; } .progress { display: none; }
+  .act { max-width: none; left: 0; right: 0; top: auto; bottom: 0; transform: none; padding: 70px var(--pad) calc(70px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent, rgba(5, 11, 24, .82) 34%, rgba(5, 11, 24, .94)); }
+  .act h2 { font-size: 36px; } .act .lede { font-size: 16.5px; } .scrollhint { display: none; }
+}
+.reveal { opacity: 0; transform: translateY(28px); }
+.nojs .reveal, .still .reveal { opacity: 1; transform: none; }
+
+/* search demo */
+.searchdemo { background: linear-gradient(180deg, rgba(20, 40, 74, .7), rgba(10, 22, 44, .85)); border: 1px solid var(--line); border-radius: 20px; padding: 18px; box-shadow: 0 40px 90px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06); }
+.sq { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(5, 11, 24, .7); border: 1px solid rgba(127,208,255,.28); border-radius: 14px; font: 500 19px var(--sans); }
+.sq .caret { width: 2px; height: 22px; background: var(--amber); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.chips { display: flex; gap: 8px; margin: 14px 4px 6px; min-height: 30px; }
+.chip { font: 600 13px var(--mono); padding: 4px 11px; border-radius: 999px; background: rgba(77, 214, 140, .14); color: #74e3a6; border: 1px solid rgba(77,214,140,.35); opacity: 0; transform: scale(.8); }
+.res { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.res li { display: grid; grid-template-columns: 58px 1fr auto; gap: 14px; align-items: center; padding: 10px 12px; border-radius: 12px; opacity: 0; transform: translateY(8px); }
+.res li.top { background: rgba(63, 182, 232, .14); border: 1px solid rgba(63,182,232,.35); }
+.res .th { height: 38px; border-radius: 9px; background: rgba(255,255,255,.05); display: grid; place-items: center; }
+.res b { display: block; font-weight: 700; } .res span { color: var(--ink-3); font-size: 13.5px; }
+.res em { font-style: normal; font: 600 11.5px var(--mono); color: var(--ink-2); background: rgba(255,255,255,.06); padding: 3px 9px; border-radius: 999px; }
+
+/* numbers */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; margin-top: 40px; }
+.stat { background: var(--night-2); padding: 28px 24px; }
+.stat b { display: block; font: 800 clamp(38px, 4vw, 56px) var(--display); background: linear-gradient(180deg, #fff, var(--steel)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat span { color: var(--ink-2); font-size: 15px; }
+@media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* features */
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; perspective: 1200px; }
+.feat { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; transform-style: preserve-3d; transition: transform .25s, border-color .25s; backdrop-filter: blur(8px); }
+.feat:hover { border-color: rgba(255, 176, 46, .5); }
+.feat .ic { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(63,182,232,.25), rgba(63,182,232,.05)); color: var(--cyan-2); margin-bottom: 16px; transform: translateZ(30px); }
+.feat h3 { margin: 0 0 8px; font: 700 20px var(--display); transform: translateZ(20px); }
+.feat p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+@media (max-width: 960px) { .features { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .features { grid-template-columns: 1fr; } }
+
+/* screenshot deck */
+.deck { position: relative; height: clamp(360px, 52vw, 640px); perspective: 1800px; margin-top: 50px; }
+.shot { position: absolute; left: 50%; top: 50%; width: min(860px, 88vw); border-radius: 14px; overflow: hidden; border: 1px solid rgba(127,208,255,.25); box-shadow: 0 50px 120px rgba(0,0,0,.6); transform-origin: 50% 50%; background: #0b1d3a; }
+.shot img { width: 100%; }
+.shot figcaption { position: absolute; left: 14px; bottom: 12px; font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; background: rgba(5,11,24,.8); padding: 6px 10px; border-radius: 8px; }
+.deck-nav { display: flex; gap: 10px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
+.deck-nav button { font: 600 13px var(--sans); color: var(--ink-2); background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+.deck-nav button.on { color: #1a1003; background: var(--amber); border-color: var(--amber); }
+
+/* phone */
+.phone { width: min(300px, 70vw); margin: 0 auto; aspect-ratio: 9 / 19; border-radius: 44px; padding: 12px; background: linear-gradient(145deg, #2a3446, #0d1320); box-shadow: 0 60px 120px rgba(0,0,0,.6), inset 0 0 0 2px rgba(255,255,255,.08); transform: rotateY(-18deg) rotateX(6deg); transition: transform .6s; }
+.phone:hover { transform: rotateY(-6deg) rotateX(2deg); }
+.phone .scr { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; background: #eef1f5; position: relative; }
+.phone .scr img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.phone .scr::before { content: ""; position: absolute; top: 10px; left: 50%; width: 84px; height: 22px; transform: translateX(-50%); background: #05070c; border-radius: 12px; z-index: 2; }
+.list { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 14px; }
+.list li { display: grid; grid-template-columns: 26px 1fr; gap: 12px; color: var(--ink-2); }
+.list li::before { content: ""; width: 0; height: 0; margin-top: 7px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 12px solid var(--amber); }
+.list b { color: var(--ink); }
+
+/* data honesty */
+.ledger { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; font: 14px var(--mono); }
+.ledger .row { display: grid; grid-template-columns: 120px 1fr auto; gap: 14px; padding: 10px 0; border-bottom: 1px dashed var(--line); align-items: center; }
+.ledger .row:last-child { border-bottom: 0; }
+.ledger .id { color: var(--amber); } .ledger .st { font-size: 12px; color: var(--ink-3); }
+.switch { display: inline-flex; align-items: center; gap: 12px; margin-top: 18px; font: 600 14px var(--mono); color: var(--ink-2); }
+.switch code { color: var(--ink); background: rgba(255,255,255,.06); padding: 8px 12px; border-radius: 9px; }
+
+/* download */
+.download { text-align: center; background: radial-gradient(ellipse 70% 90% at 50% 0%, rgba(255,176,46,.14), transparent 70%), var(--night-2); border: 1px solid var(--line); border-radius: 28px; padding: clamp(40px, 7vw, 80px) var(--pad); }
+.download .icon3d { width: 132px; height: 132px; margin: 0 auto 10px; border-radius: 30px; box-shadow: 0 30px 70px rgba(63,182,232,.3), 0 0 0 1px rgba(255,255,255,.08); animation: float 6s ease-in-out infinite; }
+@keyframes float { 50% { transform: translateY(-10px) rotate(-2deg); } }
+.download .cta { justify-content: center; }
+.dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 36px auto 0; max-width: 900px; text-align: left; }
+.dl { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.dl b { display: block; font: 700 17px var(--display); margin-bottom: 4px; } .dl span { color: var(--ink-3); font-size: 14px; }
+.dl .btn { margin-top: 14px; width: 100%; justify-content: center; }
+.note { color: var(--ink-3); font-size: 13.5px; margin-top: 22px; }
+@media (max-width: 760px) { .dl-grid { grid-template-columns: 1fr; } }
+
+footer { position: relative; z-index: 2; padding: 40px var(--pad) calc(40px + env(safe-area-inset-bottom)); color: var(--ink-3); font-size: 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); }
+footer img { width: 26px; height: 26px; border-radius: 7px; }
+footer .sp { margin-left: auto; }
+
+/* without WebGL, or with reduced motion: a still poster instead of the 3D stage */
+.poster { display: none; }
+.still #stage, .nogl #stage { height: auto; }
+.still .sticky, .nogl .sticky { position: relative; height: auto; min-height: 100vh; }
+.still #gl, .nogl #gl, .still .progress, .nogl .progress, .still .scrollhint, .nogl .scrollhint { display: none; }
+.still .act, .nogl .act { position: relative; opacity: 1; transform: none; top: auto; left: auto; max-width: 640px; padding: 140px var(--pad) 40px; }
+.still .act:not(.a0), .nogl .act:not(.a0) { display: none; }
+.still .acts, .nogl .acts { position: relative; inset: auto; }
+.still .vignette, .nogl .vignette { display: none; }
+.still .poster, .nogl .poster { display: block; width: min(420px, 70vw); margin: 0 auto 60px; border-radius: 80px; box-shadow: 0 40px 100px rgba(63,182,232,.25); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="grid-bg" aria-hidden="true"></div>
+
+<nav class="nav" id="nav">
+  <a class="brand" href="#top"><img src="assets/icon.svg" alt="">Datum</a>
+  <div class="links">
+    <a href="#search">Search</a>
+    <a href="#features">Features</a>
+    <a href="#phone">Phone</a>
+    <a href="#guide">Guide</a>
+    <a class="btn primary" href="#download">Download</a>
+  </div>
+</nav>
+
+<div id="stage">
+  <div class="sticky" id="top">
+    <canvas id="gl" aria-label="A 6 inch Class 300 weld-neck flange joint in 3D"></canvas>
+    <div class="vignette"></div>
+    <svg id="dims" aria-hidden="true"></svg>
+    <div id="tags" aria-hidden="true"></div>
+    <div class="acts">
+      <div class="act a0">
+        <div class="kicker">Dexterity Design Services · internal</div>
+        <h1><span class="shine">Datum</span></h1>
+        <p class="lede">Every flange, fitting and valve — drawn to true scale, explained in motion, on your desk and in your pocket.</p>
+        <div class="cta">
+          <a class="btn primary" href="#download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</a>
+          <a class="btn" href="#guide">Read the guide</a>
+        </div>
+        <p class="meta">Windows · Android · fully offline · 4 MB</p>
+      </div>
+      <div class="act a1">
+        <div class="kicker">Explained in motion</div>
+        <h2>Take the joint apart.</h2>
+        <p class="lede">Every component family has an animated explainer: what it is, where it is used, how it works, its limits and how to inspect it. Assemble, flow, exploded and pressure views.</p>
+      </div>
+      <div class="act a2">
+        <div class="kicker">Drawn to scale</div>
+        <h2>Real dimensions. Not pictures.</h2>
+        <p class="lede">Drawings are built from the selected row of the standard and reshape as you change size, class, face or schedule. This is 6" Class 300 to ASME B16.5.</p>
+      </div>
+      <div class="act a3">
+        <div class="kicker">The reference</div>
+        <h2>One datum for the whole office.</h2>
+        <p class="lede">168 component pages, 7 calculators and both office workbooks, reproducing the source exactly — with every known correction recorded, not hidden.</p>
+      </div>
+    </div>
+    <img class="poster" src="assets/icon-512.png" alt="Datum">
+    <div class="progress" aria-hidden="true"><b class="on"></b><b></b><b></b><b></b></div>
+    <div class="scrollhint" aria-hidden="true">Scroll<i></i></div>
+  </div>
+</div>
+
+<section class="block" id="search">
+  <div class="split">
+    <div class="reveal">
+      <div class="kicker">Plain-English search</div>
+      <h2>Ask the way you'd ask a colleague.</h2>
+      <p class="lede">Size, class, face and schedule are read straight from your words and applied when the page opens. Trade names work too: spectacle blind, olet, swage, support span.</p>
+      <p class="meta mono">Ctrl K · or / · on a phone, Search in the bottom bar</p>
+    </div>
+    <div class="searchdemo reveal" aria-label="Search demonstration">
+      <div class="sq"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7fd0ff" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span id="typed" class="mono"></span><i class="caret"></i></div>
+      <div class="chips"><span class="chip">4"</span><span class="chip">600#</span><span class="chip">RTJ</span></div>
+      <ul class="res">
+        <li class="top"><div class="th"><svg width="46" height="26" viewBox="0 0 46 26"><rect x="17" y="2" width="12" height="22" rx="1" fill="none" stroke="#7fd0ff" stroke-width="2"/><path d="M4 13h38" stroke="#7fd0ff" stroke-dasharray="3 3"/></svg></div><div><b>Blind Flange</b><span>ASME B16.5 Flanges · ASME B16.5-2020</span></div><em>Flanges</em></li>
+        <li><div class="th"><svg width="46" height="26" viewBox="0 0 46 26"><circle cx="15" cy="13" r="8" fill="none" stroke="#a9bdd4" stroke-width="2"/><circle cx="31" cy="13" r="8" fill="none" stroke="#a9bdd4" stroke-width="2"/></svg></div><div><b>Figure-8 Blank</b><span>Line Blanks · ASME B16.48</span></div><em>Line blanks</em></li>
+        <li><div class="th"><svg width="46" height="26" viewBox="0 0 46 26"><circle cx="16" cy="13" r="8" fill="none" stroke="#a9bdd4" stroke-width="2"/><path d="M24 13h14" stroke="#a9bdd4" stroke-width="3"/></svg></div><div><b>Paddle Blank and Spacer</b><span>Line Blanks · ASME B16.48</span></div><em>Line blanks</em></li>
+      </ul>
+    </div>
+  </div>
+  <div class="stats reveal">
+    <div class="stat"><b data-count="168">168</b><span>component pages across 40 families</span></div>
+    <div class="stat"><b data-count="7">7</b><span>piping engineering calculators</span></div>
+    <div class="stat"><b data-count="37">37</b><span>workbook sheets, hidden helpers included</span></div>
+    <div class="stat"><b data-count="0">0</b><span>network connections needed</span></div>
+  </div>
+</section>
+
+<section class="block" id="features">
+  <div class="reveal" style="max-width:760px">
+    <div class="kicker">What's inside</div>
+    <h2>A data book that thinks like a piping engineer.</h2>
+  </div>
+  <div class="features">
+    <div class="feat reveal"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><circle cx="12" cy="5.5" r="1"/><circle cx="12" cy="18.5" r="1"/><circle cx="5.5" cy="12" r="1"/><circle cx="18.5" cy="12" r="1"/></svg></div><h3>Flanges to fittings</h3><p>B16.5, B16.47 A/B, B16.36, API 6A, EN 1092-1, B16.9, B16.11, MSS SP-95, olets, gaskets, valves, blanks, strainers, pipe and nuts.</p></div>
+    <div class="feat reveal"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16M4 19V5M8 15l4-6 3 4 4-7"/></svg></div><h3>Only what's made</h3><p>Sizes, classes, faces and schedules the standard doesn't list are struck through before you pick them. No empty tables, ever.</p></div>
+    <div class="feat reveal"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></div><h3>Explainers that move</h3><p>Assemble, flow, exploded and pressure views show what a part does and why it is chosen.</p></div>
+    <div class="feat reveal"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V4h16"/><path d="M4 16c5 0 7-3 9-6s4-4 7-4"/></svg></div><h3>Seven calculators</h3><p>Safe spans, flexibility, P-T ratings, spacing, ASME composite, wall thickness and pipe size — each with a live diagram.</p></div>
+    <div class="feat reveal"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg></div><h3>The office workbooks</h3><p>Steel / Pipe / Vessel (37 sheets) and the Skid COG sheet with lifting-lug check. Same inputs, same results as the workbook.</p></div>
+    <div class="feat reveal"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M5 21h14"/></svg></div><h3>Honest data</h3><p>The source is reproduced exactly. 353 known issues are recorded with their fix; one command applies them when the rulings are in.</p></div>
+  </div>
+</section>
+
+<section class="block" id="screens">
+  <div class="reveal" style="text-align:center;max-width:760px;margin:0 auto">
+    <div class="kicker" style="justify-content:center">Inside the app</div>
+    <h2>Built for the way you check a drawing.</h2>
+  </div>
+  <div class="deck reveal" id="deck">
+    <figure class="shot"><img src="shots/component.jpg" alt="Component page with drawing and dimensions" loading="lazy"><figcaption>Component page</figcaption></figure>
+    <figure class="shot"><img src="shots/explainer.jpg" alt="How it works explainer" loading="lazy"><figcaption>How it works</figcaption></figure>
+    <figure class="shot"><img src="shots/workbook.jpg" alt="Steel Pipe Vessel workbook stairs page" loading="lazy"><figcaption>Workbook</figcaption></figure>
+    <figure class="shot"><img src="shots/cog.jpg" alt="Skid centre of gravity" loading="lazy"><figcaption>Skid COG</figcaption></figure>
+    <figure class="shot"><img src="shots/home.jpg" alt="Datum home page" loading="lazy"><figcaption>Library</figcaption></figure>
+  </div>
+  <div class="deck-nav" id="deckNav"></div>
+</section>
+
+<section class="block" id="phone">
+  <div class="split">
+    <div class="reveal" style="perspective:1200px"><div class="phone"><div class="scr"><img src="shots/mobile.jpg" alt="Datum on an Android phone" loading="lazy"></div></div></div>
+    <div class="reveal">
+      <div class="kicker">On site, offline</div>
+      <h2>The whole data book in your pocket.</h2>
+      <ul class="list">
+        <li><div><b>Standalone Android app.</b> Every table, drawing, calculator and workbook lives in the app. No Wi-Fi, no mobile data needed.</div></li>
+        <li><div><b>Install from any office PC.</b> The desktop app shows a QR code; the phone downloads the app straight from that PC.</div></li>
+        <li><div><b>Made for modern phones.</b> Edge-to-edge screens, the back gesture, big touch targets; saved files land in Downloads/Datum.</div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="data">
+  <div class="split">
+    <div class="reveal">
+      <div class="kicker">Data you can trust</div>
+      <h2>Reproduced exactly. Corrected openly.</h2>
+      <p class="lede">Datum never silently "fixes" the source. Each problem is recorded with where it is and the exact correction, and switched on only when the engineering ruling is made.</p>
+      <div class="switch">one switch: <code>errata apply all</code></div>
+    </div>
+    <div class="ledger reveal" aria-label="Errata register example">
+      <div class="row"><span class="id">353</span><span>items recorded in the register</span><span class="st">documented</span></div>
+      <div class="row"><span class="id">112</span><span>awaiting an engineering ruling</span><span class="st">open</span></div>
+      <div class="row"><span class="id">206</span><span>corrections already wired as switches</span><span class="st">ready</span></div>
+      <div class="row"><span class="id">0</span><span>changes made over the network</span><span class="st">by design</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="guide">
+  <div class="download reveal" id="download">
+    <img class="icon3d" src="assets/icon-512.png" alt="Datum app icon">
+    <h2>Get Datum</h2>
+    <p class="lede" style="margin:0 auto">For everyone at Dexterity Design Services.</p>
+    <div class="dl-grid">
+      <div class="dl"><b>Windows</b><span>Windows 10/11 · installer, no admin rights. Carries the Android app too.</span><a class="btn primary" href="https://github.com/dexterity-admin/datum/releases/latest">Download for Windows</a></div>
+      <div class="dl"><b>Android</b><span>Android 7.0+ · standalone, fully offline. Or scan the QR in the desktop app.</span><a class="btn" href="https://github.com/dexterity-admin/datum/releases/latest">Download APK</a></div>
+      <div class="dl"><b>User guide</b><span>Installing, searching, calculators, workbooks, phones, troubleshooting.</span><a class="btn" href="Datum-User-Guide.pdf">Read the PDF</a></div>
+    </div>
+    <p class="note">Downloads are on the Datum releases page; sign in with your Dexterity GitHub account. The guide is also built into the app — click <b>?</b> at the top right.</p>
+  </div>
+</section>
+
+<footer>
+  <img src="assets/icon.svg" alt=""><span>Datum · Dexterity Design Services Pvt. Ltd. · internal tool</span>
+  <span class="sp mono" style="font-size:12px">Built to ASME B16.5 proportions · 6" Class 300 shown</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module" src="site.js"></script>
+</body>
+</html>
